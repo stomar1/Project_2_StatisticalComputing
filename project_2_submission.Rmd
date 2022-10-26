@@ -1,0 +1,147 @@
+---
+title: "ShubhamTomar_Project2"
+output: html_document
+date: "2022-09-29"
+---
+##Part 1
+
+```{r}
+x<- c(1:10)
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+```
+
+
+```{r echo=TRUE}
+exp <- function(x,k){
+  sum <- 0
+  for(i in 1:k){
+    sum <- sum + (x)^k/factorial(k)
+    k <- k - 1
+  }
+  return(sum+1)
+}
+exp(x, 3)
+```
+
+
+```{r echo=TRUE}
+sample_mean<-function(x){
+    s = sum(x)
+    l = length(x)
+    mean_c = s/l
+  return (mean_c)
+}  
+sample_mean(x)
+```
+
+```{r echo=TRUE}
+##Part1B: SD                                                  
+sample_sd<- function(x){
+  m<- sample_mean(x)
+    s2= sum((x - m)^2)
+    l2= length(x)-1
+    sd2= sqrt(s2/l2)
+  
+  return (sd2)
+}
+sample_sd(x)
+```
+
+```{r echo=TRUE}
+
+##Part1C: Confidence interval 
+
+calculate_CI<- function(x, k){
+  N= length(x)
+  degrees_freedom = N - 1
+  alpha <- 1 - k
+  se = sample_sd(x)/sqrt(N)
+  t_score = qt(p=alpha/2, df=degrees_freedom, lower.tail=FALSE)
+  mar_err<- t_score * se
+  CI= c((sample_mean(x)-mar_err),(sample_mean(x)+mar_err))
+  return(CI)
+}
+calculate_CI(x, 0.95)
+calculate_CI(x, 0.90)
+```
+
+##Part 2
+
+```{r}
+##Load TidyTuesdayR data
+
+tuesdata <- tidytuesdayR::tt_load('2020-01-07')
+rainfall <- tuesdata$rainfall
+temperature <- tuesdata$temperature
+```
+
+```{r}
+##dropping NAs, creating date column, 
+new_rainfall <- na.omit(rainfall) 
+new_rainfall$date <- paste(new_rainfall$year, new_rainfall$month, new_rainfall$day, sep="-") %>% ymd() %>% as.Date()
+new_rainfall = select(new_rainfall, -month, -day)
+```
+
+```{r echo=TRUE}
+##city_name capitalize, and joining two datasets
+new_rainfall$city_name<- toupper(new_rainfall$city_name)
+df1 = merge(new_rainfall, temperature, on ='date')
+```
+
+##Part 3
+###Part 3A
+```{r}
+q <- filter(df1, year >= 2014) %>% group_by(city_name, year) %>%
+  summarise (max_temp = max(temperature, na.rm= TRUE), min_temp = min(temperature, na.rm = TRUE))
+
+```
+
+```{r}
+q %>% ggplot (aes(x=year, y= max_temp, color= "Maximum temperature", group=1)) + geom_point() + geom_line(color="blue")  + geom_line(aes(y= min_temp, color= "Minimum temperature"))+ geom_point() + facet_grid(. ~ city_name)  + ggtitle("Temperature data over time", subtitle = "Maximum and minimum temperature of each cities over time")+ labs(y= "Temperature", x= "Time(in years)") + theme(
+    plot.title = element_text(face = "bold", size = 12),
+    legend.background = element_rect(fill = "white", size = 4, colour = "white"),
+    axis.ticks = element_line(colour = "grey70", size = 0.2),
+    panel.grid.major = element_line(colour = "grey70", size = 0.2),
+    panel.grid.minor = element_blank()
+  ) + theme_grey()
+```
+
+
+###Part 3B
+```{r}
+hist_rainfall<- function(city, yr){
+  
+  dff<- filter(df1, city_name == city & year == yr)  
+  if(nrow(dff) == 0){  
+    stop("Execution stopped. No match found")
+  } else {
+    dff %>% ggplot(aes(log(rainfall))) + 
+    geom_histogram()
+  }
+}
+```
+
+```{r}
+hist_rainfall("SYDNEY", 2019)
+```
+
+
+
+##Part 4
+###Part4A
+```{r echo=TRUE}
+df2 <- filter(df1, year >= 2014)
+rain_df<- df2 %>% group_by(city_name, year) %>%
+  summarise(sm= sample_mean(rainfall), sd= sample_sd(rainfall), lower_bound= calculate_CI(rainfall, 0.95)[[1]], upper_bound= calculate_CI(rainfall, 0.95)[[2]])
+```
+
+###Part4B
+
+```{r}
+plot <- rain_df%>% ggplot (aes(x=year, y= sm, color= "Mean rainfall", group=1))+ ggtitle("Mean rainfall in cities in Australia")+ labs(y= "Rainfall(in inches)", x= "Time(in years)") + geom_point() + geom_line(color="maroon")+ geom_line(aes(y= lower_bound, color= "Lower bound")) +geom_line(aes(y= upper_bound, color= "Upper bound"))+ facet_grid(. ~ city_name) + geom_errorbar(aes(ymin=lower_bound, ymax=upper_bound), width=.2, position=position_dodge(.9))
+
+plot + theme_light()
+```
+
